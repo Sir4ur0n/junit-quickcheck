@@ -25,13 +25,14 @@
 
 package com.pholser.junit.quickcheck.runner;
 
-import java.util.ArrayDeque;
-import java.util.List;
-import java.util.Queue;
-
 import com.pholser.junit.quickcheck.MinimalCounterexampleHook;
 import com.pholser.junit.quickcheck.internal.ShrinkControl;
 import com.pholser.junit.quickcheck.internal.generator.PropertyParameterGenerationContext;
+import java.util.ArrayDeque;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
+import java.util.stream.Stream;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.TestClass;
 
@@ -68,14 +69,22 @@ class Shrinker {
         long[] seeds)
         throws Throwable {
 
-        ShrinkNode smallest =
-            ShrinkNode.root(method, testClass, params, args, seeds, failure);
-        Queue<ShrinkNode> nodes = new ArrayDeque<>(smallest.shrinks());
+        ShrinkNode smallest = ShrinkNode.root(method, testClass, params, args, seeds, failure);
+        Stream<ShrinkNode> nodes = smallest.shrinks();
 
         shrinkTimeout = System.currentTimeMillis() + maxShrinkTime;
 
+      Iterator<ShrinkNode> iterator = nodes
+          .filter(this::shouldContinueShrinking)
+          .iterator();
+      iterator
+        .filter(node -> {
+          ++shrinkAttempts;
+          return node.verifyProperty();
+        });
+
         while (shouldContinueShrinking(nodes)) {
-            ShrinkNode next = nodes.poll();
+//            ShrinkNode next = nodes.poll();
 
             boolean result = next.verifyProperty();
             ++shrinkAttempts;
@@ -106,5 +115,11 @@ class Shrinker {
             && shrinkTimeout >= System.currentTimeMillis()
             && !nodes.isEmpty()
             && nodes.peek().depth() <= maxShrinkDepth;
+    }
+
+    private boolean shouldContinueShrinking(ShrinkNode node) {
+        return shrinkAttempts < maxShrinks
+            && shrinkTimeout >= System.currentTimeMillis()
+            && node.depth() <= maxShrinkDepth;
     }
 }

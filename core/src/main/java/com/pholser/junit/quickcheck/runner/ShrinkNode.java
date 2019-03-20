@@ -25,22 +25,21 @@
 
 package com.pholser.junit.quickcheck.runner;
 
+import static com.pholser.junit.quickcheck.runner.PropertyFalsified.counterexampleFound;
+import static com.pholser.junit.quickcheck.runner.PropertyFalsified.smallerCounterexampleFound;
+import static java.util.Comparator.comparing;
+import static java.util.function.Function.identity;
+
+import com.pholser.junit.quickcheck.internal.generator.PropertyParameterGenerationContext;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
-
-import com.pholser.junit.quickcheck.internal.generator.PropertyParameterGenerationContext;
+import java.util.stream.Stream;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.TestClass;
-
-import static java.util.Comparator.*;
-import static java.util.function.Function.*;
-import static java.util.stream.Collectors.*;
-
-import static com.pholser.junit.quickcheck.runner.PropertyFalsified.*;
 
 final class ShrinkNode implements Comparable<ShrinkNode> {
     private final FrameworkMethod method;
@@ -93,13 +92,12 @@ final class ShrinkNode implements Comparable<ShrinkNode> {
             failure);
     }
 
-    List<ShrinkNode> shrinks() {
+    Stream<ShrinkNode> shrinks() {
         return IntStream.range(0, params.size())
             .mapToObj(i -> params.get(i).shrink(args[i]).stream()
                 .filter(o -> !o.equals(args[i]))
                 .map(o -> shrinkNodeFor(o, i)))
-            .flatMap(identity())
-            .collect(toList());
+            .flatMap(identity());
     }
 
     boolean verifyProperty() throws Throwable {
